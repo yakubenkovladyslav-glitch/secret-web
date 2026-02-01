@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Precise Media Gallery</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- LOAD THE LIST WE GENERATED -->
+    <script src="media_list.js"></script> 
+    
+    <style>
+        .card { background: #222; border-radius: 8px; overflow: hidden; margin-bottom: 20px;}
+        img, video { width: 100%; display: block; }
+        .error-msg { color: #ff4444; text-align: center; display: none; margin-top: 10px;}
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>Private Access</h2>
+            <input type="password" id="password-input" placeholder="Enter Password">
+            <button onclick="checkPassword()">Unlock</button>
+            <p id="error-msg" class="error-msg">Wrong Password</p>
+        </div>
+    </div>
+
+    <!-- GALLERY -->
+    <main id="gallery-content" style="display:none;">
+        <h1>My Collection (<span id="count">0</span> items)</h1>
+        <div class="media-grid" id="grid-container"></div>
+    </main>
+
+    <script>
+        function checkPassword() {
+            if (document.getElementById("password-input").value === "1234") {
+                document.getElementById("login-overlay").style.display = "none";
+                document.getElementById("gallery-content").style.display = "block";
+                loadGallery();
+            } else {
+                document.getElementById("error-msg").style.display = "block";
+            }
+        }
+
+        function loadGallery() {
+            const container = document.getElementById('grid-container');
+            const folderPath = "private-media/";
+            
+            // CHECK IF THE LIST EXISTS
+            if (typeof mediaList === 'undefined') {
+                alert("Error: 'media_list.js' not found. Please run the python script first!");
+                return;
+            }
+
+            // UPDATE COUNT
+            document.getElementById('count').innerText = mediaList.length;
+
+            // LOOP THROUGH THE EXACT LIST OF FILES
+            mediaList.forEach(filename => {
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const ext = filename.split('.').pop().toLowerCase();
+                const isVideo = ['mp4', 'webm', 'mov', 'avi'].includes(ext);
+                const fullPath = folderPath + filename;
+
+                let mediaEl;
+                
+                if (isVideo) {
+                    mediaEl = document.createElement('video');
+                    mediaEl.src = fullPath;
+                    mediaEl.controls = true;
+                    mediaEl.preload = "metadata"; // Don't download until clicked
+                } else {
+                    mediaEl = document.createElement('img');
+                    mediaEl.dataset.src = fullPath; // Setup for Lazy Load
+                    mediaEl.className = "lazy";
+                    mediaEl.alt = filename;
+                }
+
+                card.appendChild(mediaEl);
+                container.appendChild(card);
+            });
+
+            // ACTIVATE LAZY LOADING (Only load images when scrolled to)
+            initLazyLoading();
+        }
+
+        function initLazyLoading() {
+            const lazyImages = document.querySelectorAll("img.lazy");
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.classList.remove("lazy");
+                        observer.unobserve(img);
+                    }
+                });
+            });
+            lazyImages.forEach(img => observer.observe(img));
+        }
+    </script>
+
+</body>
+</html>
