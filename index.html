@@ -1,17 +1,21 @@
+<!-- --- START OF FILE index.html --- -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Note: maximum-scale=1.0 prevents browser native zoom so our custom zoom works better -->
     <title>Precise Media Gallery</title>
     <link rel="stylesheet" href="style.css">
-    <!-- LOAD THE LIST WE GENERATED -->
     <script src="media_list.js"></script> 
     
     <style>
         .card { background: #222; border-radius: 8px; overflow: hidden; margin-bottom: 20px;}
         img, video { width: 100%; display: block; }
         .error-msg { color: #ff4444; text-align: center; display: none; margin-top: 10px;}
+        /* Add cursor pointer to grid images so user knows they are clickable */
+        .card img { cursor: pointer; }
     </style>
 </head>
 <body>
@@ -26,6 +30,12 @@
         </div>
     </div>
 
+    <!-- LIGHTBOX OVERLAY -->
+    <div id="lightbox">
+        <div class="lightbox-hint">Double Click/Tap to Close</div>
+        <img id="lightbox-img" src="" alt="Full Screen">
+    </div>
+
     <!-- GALLERY -->
     <main id="gallery-content" style="display:none;">
         <h1>My Collection (<span id="count">0</span> items)</h1>
@@ -33,6 +43,7 @@
     </main>
 
     <script>
+        // --- AUTHENTICATION ---
         function checkPassword() {
             if (document.getElementById("password-input").value === "1234") {
                 document.getElementById("login-overlay").style.display = "none";
@@ -43,20 +54,18 @@
             }
         }
 
+        // --- GALLERY LOADER ---
         function loadGallery() {
             const container = document.getElementById('grid-container');
             const folderPath = "private-media/";
             
-            // CHECK IF THE LIST EXISTS
             if (typeof mediaList === 'undefined') {
                 alert("Error: 'media_list.js' not found. Please run the python script first!");
                 return;
             }
 
-            // UPDATE COUNT
             document.getElementById('count').innerText = mediaList.length;
 
-            // LOOP THROUGH THE EXACT LIST OF FILES
             mediaList.forEach(filename => {
                 const card = document.createElement('div');
                 card.className = 'card';
@@ -71,19 +80,20 @@
                     mediaEl = document.createElement('video');
                     mediaEl.src = fullPath;
                     mediaEl.controls = true;
-                    mediaEl.preload = "metadata"; // Don't download until clicked
+                    mediaEl.preload = "metadata";
                 } else {
                     mediaEl = document.createElement('img');
-                    mediaEl.dataset.src = fullPath; // Setup for Lazy Load
+                    mediaEl.dataset.src = fullPath; 
                     mediaEl.className = "lazy";
                     mediaEl.alt = filename;
+                    // ADD CLICK EVENT FOR LIGHTBOX
+                    mediaEl.onclick = function() { openLightbox(fullPath); };
                 }
 
                 card.appendChild(mediaEl);
                 container.appendChild(card);
             });
 
-            // ACTIVATE LAZY LOADING (Only load images when scrolled to)
             initLazyLoading();
         }
 
@@ -101,6 +111,138 @@
             });
             lazyImages.forEach(img => observer.observe(img));
         }
+
+        // --- LIGHTBOX LOGIC (Zoom/Pan/Mobile) ---
+        const lightbox = document.getElementById('lightbox');
+        const lbImg = document.getElementById('lightbox-img');
+        
+        // Variables for Zoom/Pan
+        let scale = 1;
+        let pointX = 0;
+        let pointY = 0;
+        let startX = 0;
+        let startY = 0;
+        let isDragging = false;
+        
+        // Variables for Pinch Zoom
+        let initialPinchDistance = 0;
+        let initialScale = 1;
+
+        function openLightbox(src) {
+            lbImg.src = src;
+            lightbox.style.display = "flex";
+            resetZoom();
+        }
+
+        function resetZoom() {
+            scale = 1;
+            pointX = 0;
+            pointY = 0;
+            updateTransform();
+        }
+
+        function updateTransform() {
+            lbImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+
+        // 1. DOUBLE CLICK TO CLOSE
+        // We attach this to the lightbox container (background) and image
+        lightbox.addEventListener('dblclick', function() {
+            lightbox.style.display = "none";
+            lbImg.src = ""; // Clear mem
+        });
+
+        // 2. DESKTOP ZOOM (Wheel)
+        lightbox.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const xs = (e.clientX - pointX) / scale;
+            const ys = (e.clientY - pointY) / scale;
+            
+            const delta = -Math.sign(e.deltaY);
+            const nextScale = scale + (delta * 0.2); // Sensitivity
+
+            if (nextScale >= 1 && nextScale <= 5) {
+                scale = nextScale;
+                // Adjust position to zoom towards mouse pointer
+                // (Math is simplified for center-origin, but works reasonably well)
+                // For perfect pointer-zoom, we'd need to adjust pointX/Y based on mouse offset
+            }
+            updateTransform();
+        });
+
+        // 3. PANNING (Mouse & Touch)
+        function startDrag(e) {
+            e.preventDefault();
+            isDragging = true;
+            if (e.type === 'touchstart') {
+                if(e.touches.length === 2) {
+                    // Start Pinch Logic
+                    isDragging = false; 
+                    initialPinchDistance = getDistance(e.touches);
+                    initialScale = scale;
+                    return;
+                }
+                startX = e.touches[0].clientX - pointX;
+                startY = e.touches[0].clientY - pointY;
+            } else {
+                startX = e.clientX - pointX;
+                startY = e.clientY - pointY;
+            }
+        }
+
+        function moveDrag(e) {
+            e.preventDefault();
+            
+            // Handle Pinch Zoom
+            if(e.type === 'touchmove' && e.touches.length === 2) {
+                const currentDistance = getDistance(e.touches);
+                const scaleChange = currentDistance / initialPinchDistance;
+                scale = Math.min(Math.max(1, initialScale * scaleChange), 5); // Limit 1x to 5x
+                updateTransform();
+                return;
+            }
+
+            // Handle Panning
+            if (!isDragging) return;
+
+            let clientX, clientY;
+            if (e.type === 'touchmove') {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // Only allow panning if zoomed in (scale > 1)
+            if (scale > 1) {
+                pointX = clientX - startX;
+                pointY = clientY - startY;
+                updateTransform();
+            }
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
+        function getDistance(touches) {
+            return Math.hypot(
+                touches[0].pageX - touches[1].pageX,
+                touches[0].pageY - touches[1].pageY
+            );
+        }
+
+        // Attach Events
+        lbImg.addEventListener('mousedown', startDrag);
+        lbImg.addEventListener('touchstart', startDrag);
+
+        window.addEventListener('mousemove', moveDrag);
+        window.addEventListener('touchmove', moveDrag, { passive: false });
+
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
     </script>
 
 </body>
