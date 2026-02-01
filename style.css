@@ -11,6 +11,8 @@ body {
     padding: 0;
     background-color: var(--bg-color);
     color: var(--text);
+    /* Prevent background scrolling when lightbox is open */
+    overflow-x: hidden; 
 }
 
 /* --- LOGIN --- */
@@ -31,6 +33,7 @@ header h1 { text-align: center; font-weight: 300; margin: 30px 0; letter-spacing
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 15px; padding: 15px;
     max-width: 1600px; margin: 0 auto;
+    padding-bottom: 50px;
 }
 @media (min-width: 768px) {
     .media-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; padding: 25px; }
@@ -47,36 +50,53 @@ header h1 { text-align: center; font-weight: 300; margin: 30px 0; letter-spacing
 .card:hover { transform: translateY(-3px); }
 .card img, .card video { 
     width: 100%; height: 100%; 
-    object-fit: cover; 
+    object-fit: cover; /* This cuts thumbnails to make them square, which is good for the grid */
     display: block; 
 }
 
-/* --- LIGHTBOX --- */
+/* --- LIGHTBOX (UPDATED) --- */
 #lightbox {
     display: none;
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.95);
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    /* Use 100dvh (dynamic viewport height) to account for mobile browser bars */
+    height: 100vh; 
+    height: 100dvh; 
+    background-color: rgba(0, 0, 0, 1); /* Solid black background */
     z-index: 2000;
-    justify-content: center; align-items: center;
+    justify-content: center; 
+    align-items: center;
     user-select: none;
+    touch-action: none; /* Prevents default browser zooming/scrolling */
 }
 
 #lightbox-wrapper {
-    position: relative;
-    width: 100%; height: 100%;
-    display: flex; justify-content: center; align-items: center;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; 
+    height: 100%;
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
     overflow: hidden;
 }
 
 #lightbox-img {
-    max-width: 100vw; max-height: 100vh;
-    object-fit: contain;
+    /* CRITICAL SETTINGS FOR MAX SIZE WITHOUT CROP */
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Ensures the entire image is visible within the box */
+    
+    transform-origin: center center;
     transition: transform 0.1s linear; /* Smooth pan, instant zoom */
     will-change: transform;
 }
 
 #lightbox-video {
-    max-width: 90vw; max-height: 90vh;
+    max-width: 100%; 
+    max-height: 100%;
 }
 
 /* Controls */
@@ -86,19 +106,26 @@ header h1 { text-align: center; font-weight: 300; margin: 30px 0; letter-spacing
     display: flex; justify-content: space-between; align-items: center;
     z-index: 2010;
     background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+    pointer-events: none; /* Allows clicking through the gradient to the image */
 }
-.close-btn { font-size: 40px; color: #fff; cursor: pointer; line-height: 30px; }
-.lb-counter { font-size: 16px; color: #aaa; font-variant-numeric: tabular-nums; }
+/* Re-enable pointer events for the buttons themselves */
+.close-btn, .lb-counter { pointer-events: auto; }
+
+.close-btn { font-size: 40px; color: #fff; cursor: pointer; line-height: 30px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
+.lb-counter { font-size: 16px; color: #ddd; font-variant-numeric: tabular-nums; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
 
 /* Navigation Arrows */
 .nav-area {
-    position: absolute; top: 0; height: 100%; width: 15%;
+    position: absolute; top: 0; height: 100%; width: 20%; /* Wider hit area */
     display: flex; align-items: center; justify-content: center;
     z-index: 2005; cursor: pointer; color: rgba(255,255,255,0);
     transition: color 0.2s;
-    font-size: 40px;
+    font-size: 50px;
+    /* Prevent selecting text when clicking fast */
+    -webkit-user-select: none;
+    user-select: none;
 }
-.nav-area:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.02); }
+.nav-area:hover { color: rgba(255,255,255,0.8); }
 .prev { left: 0; }
 .next { right: 0; }
 
@@ -110,6 +137,7 @@ header h1 { text-align: center; font-weight: 300; margin: 30px 0; letter-spacing
     width: 40px; height: 40px;
     animation: spin 1s linear infinite;
     position: absolute;
+    z-index: 1999;
     display: none;
 }
 @keyframes spin { 100% { transform: rotate(360deg); } }

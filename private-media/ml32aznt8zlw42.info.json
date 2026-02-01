@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "id": "ml32aznt8zlw42",
+    "date": 1769909309711,
+    "rating": 0,
+    "w": 512,
+    "h": 768
+  },
+  "info": {
+    "prompt": "painterly anime artwork, generate a long image wayfu with boobs and pussy , world-class masterpiece, fine details, breathtaking artwork, painterly art style, high quality, 8k, very detailed, high resolution, exquisite composition and lighting.\n\nOverall, it's an absolute world-class masterpiece painterly anime artwork. It's an aesthetically pleasing painterly anime artwork with impeccable attention to detail and impressive composition.",
+    "negativePrompt": "text",
+    "seed": "566118846",
+    "guidanceScale": "7"
+  },
+  "mime": "image/jpeg"
+}
