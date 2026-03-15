@@ -52,7 +52,7 @@
     <main id="gallery-content" style="display:none;">
         <header>
             <h1>Collection (<span id="count">0</span>)</h1>
-            <!-- Added Category Tabs -->
+            <!-- Category Tabs -->
             <div class="category-tabs">
                 <button id="btn-images" class="tab-btn active" onclick="filterMedia('images')">Images</button>
                 <button id="btn-videos" class="tab-btn" onclick="filterMedia('videos')">Videos</button>
@@ -69,9 +69,8 @@
         const AUTH_HASH = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4";
 
         let currentIndex = 0;
-        let filteredMediaList =[]; // Holds items of the currently selected tab
+        let filteredMediaList = []; 
         
-        // Allowed extensions per category
         const fileCategories = {
             images: ['jpg', 'jpeg', 'png', 'webp'],
             videos: ['mp4', 'webm', 'mov', 'avi'],
@@ -120,25 +119,19 @@
                 alert("Error: Run scan_files.py first!");
                 return;
             }
-            // Load 'images' tab by default
             filterMedia('images');
         }
 
         function filterMedia(type) {
-            // Update Tab Button Styles
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('btn-' + type).classList.add('active');
-
-            // Filter main list
             filteredMediaList = mediaList.filter(file => getFileType(file) === type);
-
-            // Re-render
             renderGrid();
         }
 
         function renderGrid() {
             const container = document.getElementById('grid-container');
-            container.innerHTML = ""; // Clear existing grid
+            container.innerHTML = ""; 
 
             document.getElementById('count').innerText = filteredMediaList.length;
             document.getElementById('lb-total').innerText = filteredMediaList.length;
@@ -152,8 +145,11 @@
 
                 if (fileType === 'videos') {
                     const mediaEl = document.createElement('video');
-                    mediaEl.src = fullPath + "#t=0.1";
+                    // FIX: Removed #t=0.1 to avoid Range Request errors on GitHub Pages
+                    mediaEl.dataset.src = fullPath; 
                     mediaEl.preload = "metadata";
+                    mediaEl.muted = true; // Helps browser load metadata/thumbnail
+                    mediaEl.playsInline = true;
                     mediaEl.className = "lazy grid-video";
                     card.appendChild(mediaEl);
 
@@ -164,7 +160,6 @@
                     card.appendChild(audioDiv);
 
                 } else {
-                    // Images & GIFs
                     const mediaEl = document.createElement('img');
                     mediaEl.dataset.src = fullPath;
                     mediaEl.className = "lazy";
@@ -185,7 +180,9 @@
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         const el = entry.target;
-                        if(el.tagName === 'IMG') el.src = el.dataset.src;
+                        if(el.tagName === 'IMG' || el.tagName === 'VIDEO') {
+                            el.src = el.dataset.src;
+                        }
                         el.classList.remove("lazy");
                         observer.unobserve(el);
                     }
@@ -242,7 +239,6 @@
             document.getElementById('lb-current').innerText = currentIndex + 1;
             lbSpinner.style.display = "block";
 
-            // Hide/Pause all players initially
             lbImg.style.display = "none";
             lbVid.style.display = "none";
             lbAudioContainer.style.display = "none";
@@ -252,19 +248,21 @@
             if (fileType === 'videos') {
                 lbVid.style.display = "block";
                 lbVid.src = fullPath;
-                lbVid.onloadstart = () => { lbSpinner.style.display = "none"; };
+                // Auto-hide spinner when video is ready
+                lbVid.onloadeddata = () => { lbSpinner.style.display = "none"; };
+                lbVid.onerror = () => { lbSpinner.style.display = "none"; };
 
             } else if (fileType === 'music') {
                 lbAudioContainer.style.display = "flex";
                 lbAudio.src = fullPath;
-                lbAudio.play();
-                lbSpinner.style.display = "none"; // Hide spinner immediately for audio
+                lbAudio.play().catch(e => console.log("Autoplay blocked"));
+                lbSpinner.style.display = "none";
 
             } else {
-                // Images and GIFs
                 lbImg.style.display = "block";
                 lbImg.src = fullPath;
                 lbImg.onload = () => { lbSpinner.style.display = "none"; };
+                lbImg.onerror = () => { lbSpinner.style.display = "none"; };
             }
         }
 
@@ -291,7 +289,6 @@
         });
 
         lightbox.addEventListener('wheel', (e) => {
-            // Prevent zoom if video or audio is displayed
             if(lbVid.style.display === 'block' || lbAudioContainer.style.display === 'flex') return;
             e.preventDefault();
             const delta = -Math.sign(e.deltaY) * 0.5;
